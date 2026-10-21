@@ -1,18 +1,3 @@
-/**
- * ArtSpace — script.js
- * Aplicación front-end (HTML + CSS + JS puro, sin frameworks).
- *
- * Funciones:
- *  - Navegación entre vistas (Inicio, Explorar, Favoritos, Publicar, Perfil)
- *  - Galería con búsqueda, filtros por categoría y tarjetas animadas
- *  - Favoritos guardados en localStorage
- *  - Publicación de obras con validación e imagen redimensionada
- *  - Perfil editable (nombre artístico y biografía)
- *  - Fondo de partículas, toasts animados y soporte de "reducir movimiento"
- *
- * NOTA: no hay autenticación ni base de datos. Todo se guarda en el
- * almacenamiento local del navegador (localStorage) de forma tolerante a fallos.
- */
 (function () {
   'use strict';
 
@@ -563,35 +548,49 @@
     const nameInput = document.getElementById('profile-name-input');
     const bioInput = document.getElementById('profile-bio-input');
 
+    if (!form || !nameInput || !bioInput) return;
+
+    const MAX_BIO_LENGTH = 600;
+    nameInput.maxLength = 80;
+    bioInput.maxLength = MAX_BIO_LENGTH;
+
+    function validateProfileForm() {
+      const name = nameInput.value.trim();
+      const bio = bioInput.value.trim();
+      const errors = {
+        name: '',
+        bio: ''
+      };
+
+      if (!name) {
+        errors.name = 'El nombre artístico es obligatorio.';
+      }
+
+      if (bio.length > MAX_BIO_LENGTH) {
+        errors.bio = 'La biografía no puede superar los 600 caracteres.';
+      }
+
+      return { name, bio, errors };
+    }
+
     form.addEventListener('submit', (event) => {
       event.preventDefault();
 
-      const name = nameInput.value.trim();
-      const bio = bioInput.value.trim();
-      let valid = true;
+      const { name, bio, errors } = validateProfileForm();
+      setFieldError(nameInput, 'error-profile-name', errors.name);
+      setFieldError(bioInput, 'error-profile-bio', errors.bio);
 
-      if (!name) {
-        setFieldError(nameInput, 'error-profile-name', 'El nombre artístico es obligatorio.');
-        valid = false;
-      } else {
-        setFieldError(nameInput, 'error-profile-name', '');
-      }
-
-      if (bio.length > 600) {
-        setFieldError(bioInput, 'error-profile-bio', 'La biografía no puede superar los 600 caracteres.');
-        valid = false;
-      } else {
-        setFieldError(bioInput, 'error-profile-bio', '');
-      }
-
-      if (!valid) {
-        form.querySelector('[aria-invalid="true"]').focus();
+      const invalidField = form.querySelector('[aria-invalid="true"]');
+      if (invalidField) {
+        invalidField.focus();
         showToast('Revisa los campos marcados del perfil.', 'error');
         return;
       }
 
-      state.profile.name = name;
-      state.profile.bio = bio || DEFAULT_PROFILE.bio;
+      state.profile = {
+        name,
+        bio: bio || DEFAULT_PROFILE.bio
+      };
 
       const saved = storageSet(STORAGE_KEYS.profile, state.profile);
       renderProfile();
@@ -603,9 +602,15 @@
       }
     });
 
-    // Al escribir se limpia el error correspondiente.
-    nameInput.addEventListener('input', () => setFieldError(nameInput, 'error-profile-name', ''));
-    bioInput.addEventListener('input', () => setFieldError(bioInput, 'error-profile-bio', ''));
+    nameInput.addEventListener('input', () => {
+      const { errors } = validateProfileForm();
+      setFieldError(nameInput, 'error-profile-name', errors.name);
+    });
+
+    bioInput.addEventListener('input', () => {
+      const { errors } = validateProfileForm();
+      setFieldError(bioInput, 'error-profile-bio', errors.bio);
+    });
   }
 
   /* ======================= Publicar una obra ======================= */
